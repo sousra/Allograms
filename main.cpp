@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -52,14 +51,15 @@ int main(int argc, char** argv)
     return 0;
 }
 
-std::vector<std::string> stringAnagrams(const std::string& sourceStr, const std::map<std::string, int>& dict)
+std::vector<std::string> stringAnagrams(const std::string& sentence, const std::map<std::string, int>& dict)
 {
-    // split sourceStr into words
+    // split sentence into words
     std::string word {};
-    std::vector<std::string> wordsVec {};
-    for (char i : sourceStr) {
+    std::vector<std::string> sentenceVec {};
+    for (char i : sentence)
+    {
         if (std::isspace(i)) {
-            wordsVec.push_back(word);
+            sentenceVec.push_back(word);
             word.clear();
         }
         else {
@@ -67,45 +67,73 @@ std::vector<std::string> stringAnagrams(const std::string& sourceStr, const std:
         }
     }
     if (!word.empty()) {
-        wordsVec.push_back(word);
+        sentenceVec.push_back(word);
     }
 
-    // find anagrams for sourseStr words
-    for (auto& w : wordsVec) {
-        bool inDict = false;
-        int weight = -1;
-        for (auto& i : dict) {
-            if (std::is_permutation(w.begin(), w.end(), i.first.begin()) && i.second > weight) {
-                w = i.first;
-                weight = i.second;
-                inDict = true;
+    // find anagrams for each word in sentense
+    std::vector<std::multimap<int, std::string, std::greater<int>>> wordsAnagrams {};
+    for (const auto& w : sentenceVec)
+    {
+        std::multimap<int, std::string, std::greater<int>> buf {};
+        for (auto& el : dict)
+        {
+            if (w.size() == el.first.size() && std::is_permutation(w.begin(), w.end(), el.first.begin())) {
+                buf.insert(std::make_pair(el.second, el.first));
             }
         }
-        if (!inDict) {
+        if (buf.empty()) {
             throw std::logic_error("No such word in dictionary!");
         }
+        wordsAnagrams.push_back(buf);
     }
 
-    // find anagrams for sourceStr
-    std::sort(wordsVec.begin(), wordsVec.end());
-    std::vector<std::string> anagrams {};
+    // find all combinations of words
+    std::multimap<int, std::vector<std::string>, std::greater<int>> buf {};
+    std::vector<std::multimap<int, std::string, std::greater<int>>::iterator> itVec {}; // contain wordsAnagrams elements iterators
+    for (auto& i : wordsAnagrams) {
+        itVec.push_back(i.begin());
+    }
     bool isEnd = false;
-    while (!isEnd) {
-        std::string anagram {};
-        for (auto& w : wordsVec) {
-            anagram.append(w + ' ');
+    do {
+        std::vector<std::string> strVec {};
+        int strWeight = 0;
+        for (auto it : itVec) {
+            strVec.push_back(it->second);
+            strWeight += it->first;
         }
-        anagram.pop_back(); // delete space from end
-        anagrams.push_back(anagram);
-        isEnd = !std::next_permutation(wordsVec.begin(), wordsVec.end());
+        buf.insert(std::make_pair(strWeight, strVec));
+
+        for (int i = wordsAnagrams.size() - 1; i >= 0; --i)
+        {
+            if (std::distance(wordsAnagrams[i].begin(), itVec[i]) != wordsAnagrams[i].size() - 1) {
+                ++itVec[i];
+                break;
+            }
+            else {
+                if (i == 0) {
+                    isEnd = true;
+                    break;
+                }
+                for (int j = wordsAnagrams.size() - 1; j >= i; --j) {
+                    itVec[j] = wordsAnagrams[j].begin();
+                }
+            }
+        }
+    } while (!isEnd);
+
+    // find anagrams for sentence
+    std::vector<std::string> sentenceAnagrams {};
+    for (auto& p : buf)
+    {
+        std::sort(p.second.begin(), p.second.end());
+        do {
+            std::string anagram {};
+            for (auto& w : p.second) {
+                anagram.append(w + ' ');
+            }
+            anagram.pop_back(); // delete space from end
+            sentenceAnagrams.push_back(anagram);
+        } while (std::next_permutation(p.second.begin(), p.second.end()));
     }
-
-    return anagrams;
+    return sentenceAnagrams;
 }
-
-/*
-dera liwl hatt ralet kobo I
-tras nca ese ouy shti
-wedrar ti saeelp
-ym hree lsvei fendri
- */
